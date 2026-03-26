@@ -1,0 +1,8 @@
+{
+  "name": "AgriPulse AI",
+  "description": "AI-powered agricultural assistant for farmers, providing localized support, task tracking, and real-time issue resolution.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

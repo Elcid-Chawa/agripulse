@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["farmer", "expert", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email", "role"]
+    },
+    "Farm": {
+      "title": "Farm",
+      "description": "Information about a farmer's land and crops",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "cropTypes": { "type": "array", "items": { "type": "string" } },
+        "size": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Daily agricultural activities",
+      "type": "object",
+      "properties": {
+        "farmId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["farmId", "title", "status"]
+    },
+    "Issue": {
+      "title": "Issue",
+      "description": "Agricultural problems reported by farmers",
+      "type": "object",
+      "properties": {
+        "farmerId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "aiResponse": { "type": "string" },
+        "expertResponse": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["farmerId", "title", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/farms/{farmId}": {
+      "schema": "Farm",
+      "description": "Farm details"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Agricultural tasks"
+    },
+    "/issues/{issueId}": {
+      "schema": "Issue",
+      "description": "Reported agricultural issues"
+    }
+  }
+}
