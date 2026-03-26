@@ -42,11 +42,22 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(window.navigator.onLine);
+  const [guestSettings, setGuestSettings] = useState({
+    tempUnit: 'C',
+    speedUnit: 'km/h',
+    language: 'English'
+  });
 
   useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Check if user exists in Firestore, if not create
         const userRef = doc(db, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userRef);
         
@@ -56,8 +67,12 @@ export default function App() {
             displayName: firebaseUser.displayName || 'Farmer',
             email: firebaseUser.email,
             role: 'farmer',
+            settings: guestSettings,
             createdAt: serverTimestamp()
           });
+        } else {
+          const data = userDoc.data();
+          if (data.settings) setGuestSettings(data.settings);
         }
         setUser(firebaseUser);
       } else {
@@ -65,7 +80,11 @@ export default function App() {
       }
       setLoading(false);
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const handleLogin = async () => {
@@ -85,47 +104,43 @@ export default function App() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-emerald-50">
-        <Loader2 className="w-12 h-12 text-emerald-600 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-emerald-50 px-6 text-center">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full"
-        >
-          <div className="bg-emerald-100 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
-            <Sprout className="w-10 h-10 text-emerald-600" />
-          </div>
-          <h1 className="text-3xl font-bold text-emerald-900 mb-2">AgriPulse AI</h1>
-          <p className="text-emerald-700 mb-8">Your intelligent companion for sustainable and productive farming.</p>
-          <button 
-            onClick={handleLogin}
-            className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-3"
-          >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6 bg-white rounded-full p-1" />
-            Sign in with Google
-          </button>
-          <p className="mt-6 text-xs text-emerald-500 uppercase tracking-widest font-bold">Build With AI Challenge</p>
-        </motion.div>
-      </div>
-    );
-  }
+  const updateGuestSettings = (newSettings: any) => {
+    setGuestSettings(newSettings);
+  };
 
   const renderView = () => {
     switch (currentView) {
-      case 'dashboard': return <Dashboard user={user} />;
-      case 'tasks': return <Tasks user={user} />;
-      case 'issues': return <Issues user={user} />;
-      case 'profile': return <Profile user={user} onLogout={handleLogout} />;
-      default: return <Dashboard user={user} />;
+      case 'dashboard': return <Dashboard user={user} guestSettings={guestSettings} onUpdateGuestSettings={updateGuestSettings} />;
+      case 'tasks': 
+        if (!user) return (
+          <div className="flex flex-col items-center justify-center py-20 text-center gap-6">
+            <div className="bg-emerald-100 p-6 rounded-full">
+              <CheckSquare className="w-12 h-12 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-emerald-900">Personal Task Manager</h3>
+              <p className="text-emerald-600 mt-2">Sign in to track your daily farm activities and get personalized schedules.</p>
+            </div>
+            <button onClick={handleLogin} className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold shadow-lg">Sign In to Continue</button>
+          </div>
+        );
+        return <Tasks user={user} />;
+      case 'issues': return <Issues user={user} guestSettings={guestSettings} />;
+      case 'profile': 
+        if (!user) return (
+          <div className="flex flex-col items-center justify-center py-20 text-center gap-6">
+            <div className="bg-emerald-100 p-6 rounded-full">
+              <UserIcon className="w-12 h-12 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-emerald-900">Your Farm Profile</h3>
+              <p className="text-emerald-600 mt-2">Sign in to manage your farm details, preferences, and saved issues.</p>
+            </div>
+            <button onClick={handleLogin} className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold shadow-lg">Sign In to Continue</button>
+          </div>
+        );
+        return <Profile user={user} onLogout={handleLogout} />;
+      default: return <Dashboard user={user} guestSettings={guestSettings} onUpdateGuestSettings={updateGuestSettings} />;
     }
   };
 
@@ -142,15 +157,48 @@ export default function App() {
       <header className="bg-white border-b border-emerald-100 px-6 py-4 sticky top-0 z-40 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sprout className="w-8 h-8 text-emerald-600" />
-          <span className="text-xl font-bold text-emerald-900">AgriPulse</span>
+          <div className="flex flex-col">
+            <span className="text-xl font-bold text-emerald-900 leading-none">AgriPulse</span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_4px_#10b981]' : 'bg-red-500 shadow-[0_0_4px_#ef4444]'}`}></div>
+              <span className="text-[8px] font-bold uppercase tracking-tighter text-emerald-400">{isOnline ? 'Online' : 'Offline'}</span>
+            </div>
+          </div>
         </div>
-        <button 
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 text-emerald-800 hover:bg-emerald-50 rounded-xl transition-colors"
-        >
-          {isMenuOpen ? <X /> : <Menu />}
-        </button>
+        <div className="flex items-center gap-2">
+          {!user && (
+            <button 
+              onClick={handleLogin}
+              className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg"
+            >
+              Sign In
+            </button>
+          )}
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="p-2 text-emerald-800 hover:bg-emerald-50 rounded-xl transition-colors"
+          >
+            {isMenuOpen ? <X /> : <Menu />}
+          </button>
+        </div>
       </header>
+
+      {/* Offline Banner */}
+      <AnimatePresence>
+        {!isOnline && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-red-50 border-b border-red-100 overflow-hidden"
+          >
+            <div className="px-6 py-2 flex items-center gap-2 text-red-600">
+              <AlertCircle className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase tracking-wide">Offline Mode: Data may not sync in real-time</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
@@ -182,13 +230,24 @@ export default function App() {
                   {item.label}
                 </button>
               ))}
-              <button 
-                onClick={handleLogout}
-                className="flex items-center gap-4 p-4 rounded-2xl text-lg font-medium text-red-600 hover:bg-red-50 mt-auto"
-              >
-                <LogOut className="w-6 h-6" />
-                Sign Out
-              </button>
+              {user && (
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center gap-4 p-4 rounded-2xl text-lg font-medium text-red-600 hover:bg-red-50 mt-auto"
+                >
+                  <LogOut className="w-6 h-6" />
+                  Sign Out
+                </button>
+              )}
+              {!user && (
+                <button 
+                  onClick={handleLogin}
+                  className="flex items-center gap-4 p-4 rounded-2xl text-lg font-medium bg-emerald-600 text-white mt-auto"
+                >
+                  <UserIcon className="w-6 h-6" />
+                  Sign In
+                </button>
+              )}
             </nav>
           </motion.div>
         )}

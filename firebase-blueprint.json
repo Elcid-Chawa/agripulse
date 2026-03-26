@@ -9,6 +9,14 @@
         "displayName": { "type": "string" },
         "email": { "type": "string" },
         "role": { "type": "string", "enum": ["farmer", "expert", "admin"] },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "tempUnit": { "type": "string", "enum": ["C", "F"] },
+            "speedUnit": { "type": "string", "enum": ["km/h", "mph"] },
+            "language": { "type": "string" }
+          }
+        },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "displayName", "email", "role"]

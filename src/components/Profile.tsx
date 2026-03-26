@@ -13,7 +13,11 @@ import {
   HelpCircle,
   Loader2,
   Edit2,
-  Save
+  Save,
+  Globe,
+  Thermometer,
+  Wind,
+  X
 } from 'lucide-react';
 
 interface ProfileProps {
@@ -26,14 +30,24 @@ export default function Profile({ user, onLogout }: ProfileProps) {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
+    tempUnit: 'C',
+    speedUnit: 'km/h',
+    language: 'English'
+  });
 
   useEffect(() => {
     const fetchProfile = async () => {
       const docRef = doc(db, 'users', user.uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        setProfile(docSnap.data());
-        setEditedName(docSnap.data().displayName);
+        const data = docSnap.data();
+        setProfile(data);
+        setEditedName(data.displayName);
+        if (data.settings) {
+          setSettings(data.settings);
+        }
       }
       setLoading(false);
     };
@@ -50,6 +64,20 @@ export default function Profile({ user, onLogout }: ProfileProps) {
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating profile:", error);
+    }
+    setLoading(false);
+  };
+
+  const handleUpdateSettings = async (newSettings: any) => {
+    setLoading(true);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        settings: newSettings
+      });
+      setSettings(newSettings);
+      setProfile({ ...profile, settings: newSettings });
+    } catch (error) {
+      console.error("Error updating settings:", error);
     }
     setLoading(false);
   };
@@ -133,7 +161,10 @@ export default function Profile({ user, onLogout }: ProfileProps) {
             </div>
             <ChevronRight className="w-5 h-5 text-emerald-200" />
           </button>
-          <button className="w-full flex items-center justify-between p-5 hover:bg-emerald-50 transition-colors">
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="w-full flex items-center justify-between p-5 hover:bg-emerald-50 transition-colors"
+          >
             <div className="flex items-center gap-4">
               <div className="bg-orange-50 p-2 rounded-xl text-orange-600"><Settings className="w-5 h-5" /></div>
               <span className="font-bold text-emerald-900">Preferences</span>
@@ -141,6 +172,85 @@ export default function Profile({ user, onLogout }: ProfileProps) {
             <ChevronRight className="w-5 h-5 text-emerald-200" />
           </button>
         </div>
+
+        {/* Settings Panel */}
+        {showSettings && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white p-6 rounded-3xl shadow-lg border border-orange-100 space-y-6"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-emerald-900 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-orange-500" />
+                App Preferences
+              </h3>
+              <button onClick={() => setShowSettings(false)} className="text-emerald-400 hover:text-emerald-600"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Thermometer className="w-5 h-5 text-emerald-500" />
+                  <span className="text-sm font-bold text-emerald-800">Temperature Unit</span>
+                </div>
+                <div className="flex bg-emerald-50 p-1 rounded-xl">
+                  <button 
+                    onClick={() => handleUpdateSettings({ ...settings, tempUnit: 'C' })}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${settings.tempUnit === 'C' ? 'bg-white text-emerald-600 shadow-sm' : 'text-emerald-400'}`}
+                  >
+                    Celsius
+                  </button>
+                  <button 
+                    onClick={() => handleUpdateSettings({ ...settings, tempUnit: 'F' })}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${settings.tempUnit === 'F' ? 'bg-white text-emerald-600 shadow-sm' : 'text-emerald-400'}`}
+                  >
+                    Fahrenheit
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Wind className="w-5 h-5 text-emerald-500" />
+                  <span className="text-sm font-bold text-emerald-800">Wind Speed Unit</span>
+                </div>
+                <div className="flex bg-emerald-50 p-1 rounded-xl">
+                  <button 
+                    onClick={() => handleUpdateSettings({ ...settings, speedUnit: 'km/h' })}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${settings.speedUnit === 'km/h' ? 'bg-white text-emerald-600 shadow-sm' : 'text-emerald-400'}`}
+                  >
+                    km/h
+                  </button>
+                  <button 
+                    onClick={() => handleUpdateSettings({ ...settings, speedUnit: 'mph' })}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${settings.speedUnit === 'mph' ? 'bg-white text-emerald-600 shadow-sm' : 'text-emerald-400'}`}
+                  >
+                    mph
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Globe className="w-5 h-5 text-emerald-500" />
+                  <span className="text-sm font-bold text-emerald-800">Language</span>
+                </div>
+                <select 
+                  value={settings.language}
+                  onChange={(e) => handleUpdateSettings({ ...settings, language: e.target.value })}
+                  className="bg-emerald-50 border-none rounded-xl text-xs font-bold text-emerald-600 focus:ring-2 focus:ring-emerald-500 p-2"
+                >
+                  <option value="English">English</option>
+                  <option value="French">French</option>
+                  <option value="Spanish">Spanish</option>
+                  <option value="Swahili">Swahili</option>
+                  <option value="Hausa">Hausa</option>
+                </select>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest ml-2 mt-6">Support</h3>
         <div className="bg-white rounded-3xl shadow-sm border border-emerald-100 overflow-hidden">

@@ -56,11 +56,18 @@ service cloud.firestore {
     // Domain Validators
     // ===============================================================
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'displayName', 'email', 'role', 'createdAt']) &&
+      return hasOnlyAllowedFields(['uid', 'displayName', 'email', 'role', 'settings', 'createdAt']) &&
              data.uid is string && data.uid.size() > 0 &&
              data.displayName is string && data.displayName.size() > 0 &&
              isValidEmail(data.email) &&
-             data.role in ['farmer', 'expert', 'admin'];
+             data.role in ['farmer', 'expert', 'admin'] &&
+             (!('settings' in data) || (
+               data.settings is map &&
+               data.settings.keys().hasOnly(['tempUnit', 'speedUnit', 'language']) &&
+               (!('tempUnit' in data.settings) || data.settings.tempUnit in ['C', 'F']) &&
+               (!('speedUnit' in data.settings) || data.settings.speedUnit in ['km/h', 'mph']) &&
+               (!('language' in data.settings) || data.settings.language is string)
+             ));
     }
 
     function isValidFarm(data) {
@@ -108,9 +115,9 @@ service cloud.firestore {
     }
 
     match /issues/{issueId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidIssue(request.resource.data) && (isOwner(request.resource.data.farmerId) || isAdmin());
-      allow update: if isAuthenticated() && isValidIssue(request.resource.data) && (isOwner(resource.data.farmerId) || isExpert() || isAdmin());
+      allow read: if true; // Publicly readable for community support
+      allow create: if true; // Allow guest reporting
+      allow update: if isAuthenticated() && (isOwner(resource.data.farmerId) || isExpert() || isAdmin());
       allow delete: if isAuthenticated() && (isOwner(resource.data.farmerId) || isAdmin());
     }
   }

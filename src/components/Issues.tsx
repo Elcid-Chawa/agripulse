@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db, collection, query, where, onSnapshot, addDoc, serverTimestamp, FirebaseUser } from '../firebase';
+import { db, collection, query, where, onSnapshot, addDoc, serverTimestamp, FirebaseUser, doc, getDoc } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Camera, 
@@ -18,10 +18,11 @@ import { analyzeCropIssue, getAgriculturalAdvice } from '../services/geminiServi
 import ReactMarkdown from 'react-markdown';
 
 interface IssuesProps {
-  user: FirebaseUser;
+  user: FirebaseUser | null;
+  guestSettings: any;
 }
 
-export default function Issues({ user }: IssuesProps) {
+export default function Issues({ user, guestSettings }: IssuesProps) {
   const [issues, setIssues] = useState<any[]>([]);
   const [isReporting, setIsReporting] = useState(false);
   const [newIssue, setNewIssue] = useState({ title: '', description: '', image: '' });
@@ -30,12 +31,19 @@ export default function Issues({ user }: IssuesProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const issuesQuery = query(collection(db, 'issues'), where('farmerId', '==', user.uid));
+    let issuesQuery;
+    if (user) {
+      issuesQuery = query(collection(db, 'issues'), where('farmerId', '==', user.uid));
+    } else {
+      // For guests, show all public issues (or just all for now)
+      issuesQuery = query(collection(db, 'issues'));
+    }
+    
     const unsubscribe = onSnapshot(issuesQuery, (snapshot) => {
       setIssues(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
     return () => unsubscribe();
-  }, [user.uid]);
+  }, [user?.uid]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -53,16 +61,18 @@ export default function Issues({ user }: IssuesProps) {
     if (!newIssue.title) return;
     setLoading(true);
     
+    const language = user ? (await getDoc(doc(db, 'users', user.uid))).data()?.settings?.language || guestSettings.language : guestSettings.language;
+
     let aiResponse = "";
     if (newIssue.image) {
-      aiResponse = await analyzeCropIssue(newIssue.image, newIssue.description);
+      aiResponse = await analyzeCropIssue(newIssue.image, newIssue.description, language);
     } else {
-      aiResponse = await getAgriculturalAdvice(newIssue.description || newIssue.title, "Crop issue analysis");
+      aiResponse = await getAgriculturalAdvice(newIssue.description || newIssue.title, "Crop issue analysis", language);
     }
 
     try {
       await addDoc(collection(db, 'issues'), {
-        farmerId: user.uid,
+        farmerId: user?.uid || 'guest',
         title: newIssue.title,
         description: newIssue.description,
         imageUrl: newIssue.image || null,
